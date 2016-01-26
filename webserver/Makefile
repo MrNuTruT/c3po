@@ -25,7 +25,7 @@ OBJS=$(CFILES:.c=.o)
 
 # La règle par défaut déclenche la fabrication de l’exécutable
 # par dépendance
-all: $ (EXE)
+all: $(EXE)
 
 # Cette règle permet de construire l’exécutable. Elle dépend des fichiers
 # .o et effectue l’édition de lien. Rien de nouveau ici

@@ -33,12 +33,18 @@ int creer_serveur(int port){
     perror("accept");
   }
 
-  const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprête du serveur web codé en C et voici mes créateurs Ali Douali et Paul Dumont.\nJe suis disposé à répondre à vos demandes jour et nuit.\nVous allez être conduits dans les profondeurs du serveur web, le repère des tout puissants créateurs.\nVous découvrirez une nouvelle forme de douleur et de souffrance, en étant lentement codés pendant plus de... 1000 ans.\n";
-  
-  if(write(socketClient, messageBienvenue, strlen(messageBienvenue))==-1){
-    perror("write");
-    return -1;
+  const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
+
+
+  while(1){   
+     if(write(socketClient, messageBienvenue, strlen(messageBienvenue)) == -1){
+      perror("write");
+      return -1;
   }
-  
+    sleep(1);
+  }
+
+  close(socketServeur);
+  close(socketClient);
   return socketServeur;
 }

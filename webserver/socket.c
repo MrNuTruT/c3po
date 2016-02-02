@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <unistd.h>
@@ -16,6 +17,12 @@ int creer_serveur(int port){
 
   if((socketServeur = socket(AF_INET, SOCK_STREAM, 0)) == -1){
     perror("socketServeur");
+    return -1;
+  }
+
+  int optval = 1;
+  if(setsockopt(socketServeur, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) == -1) {
+    perror("Can not set SO_REUSSEADDR option");
     return -1;
   }
   

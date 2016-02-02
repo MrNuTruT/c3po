@@ -3,4 +3,8 @@ Chapitre 3
 1) Le serveur s'arrête et le client arrête donc de lire le message
 de bienvenue.
 
+2) Le message de bienvenue ne s'affiche pas. Le serveur se ferme et donc impossible d'envoyer le message au client.
 
+3) Impossible avec telnet.
+
+4) Il n'y a qu'un seul des 2 clients qui fonctionne car on crée un seul serveur et un seul client.

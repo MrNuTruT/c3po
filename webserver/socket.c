@@ -35,25 +35,22 @@ int creer_serveur(int port){
 
   const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
 
-  const char* buffer = malloc(128*sizeof(char));
+  sleep(1);
   if(write(socketClient, messageBienvenue, strlen(messageBienvenue)) == -1){
      perror("write");
      return -1;
   }
-  
+  char* buffer = (char*) malloc(sizeof(char)*1024);
   while(1){
-    if(read(0,buffer,sizeof(buffer)) == -1) {
+    if(read(socketClient,buffer,sizeof(buffer)) == -1) {
       perror("read client");
       return -1;
     }
-
-    if(write(0, buffer, strlen(buffer)) == -1){
+    if(write(socketClient, buffer, sizeof(buffer)) == -1){
       perror("write client");
       return -1;
-    }
-    sleep(1);
+    }     
   }
-
   free(buffer);
   close(socketServeur);
   close(socketClient);

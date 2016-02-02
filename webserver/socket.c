@@ -6,6 +6,13 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <unistd.h>
+#include <signal.h>
+
+void initialiser_signaux(void) {
+  if(signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+    perror("signal");
+  }
+}
 
 int creer_serveur(int port){
   struct sockaddr_in saddr;
@@ -25,6 +32,8 @@ int creer_serveur(int port){
     perror("Can not set SO_REUSSEADDR option");
     return -1;
   }
+
+  initialiser_signaux();
   
   if(bind(socketServeur, (struct sockaddr *)&saddr, sizeof(saddr)) == -1){
     perror("bind socketServeur");
@@ -53,13 +62,12 @@ int creer_serveur(int port){
       perror("read client");
       return -1;
     }
-    if(write(socketClient, buffer, sizeof(buffer)) == -1){
-      perror("write client");
-      return -1;
-    }     
+    write(socketClient, buffer, sizeof(buffer));
+     
   }
   free(buffer);
   close(socketServeur);
   close(socketClient);
   return socketServeur;
 }
+

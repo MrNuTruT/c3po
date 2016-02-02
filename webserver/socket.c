@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <unistd.h>
@@ -45,25 +46,35 @@ int creer_serveur(int port){
     return -1;
   }
 
-  if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
+  /*if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
     perror("accept");
-  }
-
+    }*/
   const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
 
-  sleep(1);
-  if(write(socketClient, messageBienvenue, strlen(messageBienvenue)) == -1){
-     perror("write");
-     return -1;
-  }
   char* buffer = (char*) malloc(sizeof(char)*1024);
+  
   while(1){
-    if(read(socketClient,buffer,sizeof(buffer)) == -1) {
-      perror("read client");
+    if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
+      perror("accept");
       return -1;
     }
-    write(socketClient, buffer, sizeof(buffer));
-     
+    if(write(socketClient, messageBienvenue, strlen(messageBienvenue)) == -1){
+      perror("write");
+      return -1;
+    }
+    
+    if(!fork()){
+      close(socketServeur);
+      while(1){
+	if(read(socketClient,buffer,sizeof(buffer)) == -1) {
+	  perror("read client");
+	  return -1;
+	}
+	write(socketClient, buffer, sizeof(buffer));
+      }
+      close(socketClient);
+      exit(0);
+    }
   }
   free(buffer);
   close(socketServeur);

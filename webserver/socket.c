@@ -64,7 +64,7 @@ int creer_serveur(int port){
 int accept_client(int socketServeur){
   int socketClient;
 
-  if((socketClient = accept(socketServeur, NULL, NULL) == -1){
+  if((socketClient = accept(socketServeur, NULL, NULL) == -1)){
     if (errno != EINTR) {
       perror("accept");
     }

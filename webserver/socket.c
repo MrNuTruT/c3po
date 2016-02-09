@@ -9,11 +9,22 @@
 #include <unistd.h>
 #include <signal.h>
 
+void traitement_signal(int sig){
+  printf("Signal %d recu\n",sig);
+  waitpid(-1,NULL,0);
+}
+
 void initialiser_signaux(void) {
-  if(signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-    perror("signal");
+  struct sigaction sa ;
+  sa.sa_handler = traitement_signal ;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_RESTART ;
+  if (sigaction(SIGCHLD, &sa, NULL) == -1){
+    perror("sigaction(SIGCHLD)");
   }
 }
+
+
 
 int creer_serveur(int port){
   struct sockaddr_in saddr;
@@ -51,7 +62,6 @@ int creer_serveur(int port){
     }*/
   const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
 
-  char* buffer = (char*) malloc(sizeof(char)*1024);
   
   while(1){
     if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
@@ -63,22 +73,26 @@ int creer_serveur(int port){
       return -1;
     }
     
-    if(!fork()){
+    if( fork() == 0){ // je suis le fils
       close(socketServeur);
+      int test;
       while(1){
-	if(read(socketClient,buffer,sizeof(buffer)) == -1) {
+        char* buffer[1024];
+	test = read(socketClient,buffer,sizeof(buffer));
+	if(test == 0) {
 	  perror("read client");
-	  return -1;
+	  return 0; 
+	} else if (test == -1) {
+	  return -1; 
 	}
-	write(socketClient, buffer, sizeof(buffer));
+	write(socketClient, buffer, test);
       }
-      close(socketClient);
       exit(0);
-    }
+    } 
+    close(socketClient);
   }
-  free(buffer);
   close(socketServeur);
-  close(socketClient);
   return socketServeur;
 }
+
 

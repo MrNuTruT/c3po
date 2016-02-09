@@ -15,7 +15,7 @@ const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveu
 
 void traitement_signal(int sig){
   printf("Signal %d recu\n" ,sig);
-  wait(&sig);
+  waitpid(-1, NULL, 0);
 }
 
 void initialiser_signaux(void){
@@ -23,6 +23,7 @@ void initialiser_signaux(void){
   sa.sa_handler = traitement_signal;
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESTART;
+  
   if(sigaction(SIGCHLD, &sa, NULL) == -1){
     perror("sigaction(SIGCHLD)");
   }
@@ -64,14 +65,15 @@ int creer_serveur(int port){
 int accept_client(int socketServeur){
   int socketClient;
 
-  if((socketClient = accept(socketServeur, NULL, NULL) == -1)){
+  if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
     if (errno != EINTR) {
       perror("accept");
     }
     return -1;
   }
 
-  if(fork() == 0){
+  pid_t pid;
+  if((pid = fork()) == 0){
     char* buffer[1024];
     int readed = 0;
     
@@ -86,7 +88,7 @@ int accept_client(int socketServeur){
     }
     close(socketServeur);
     close(socketClient);
-    exit(1);
+    exit(0);
   }
   close(socketClient);
   

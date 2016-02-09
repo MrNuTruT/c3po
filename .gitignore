@@ -1,0 +1,7 @@
+Makefile~
+webserver/#socketServeur.c#
+webserver/c3po
+webserver/main.o
+webserver/makefile.dep
+webserver/socket.c~
+webserver/socket.o

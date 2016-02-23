@@ -72,14 +72,12 @@ int creer_serveur(int port){
       close(socketServeur);
       
       while(1){
+	
         char buffer[1024];
 	fprintf(file, messageBienvenue);
-	char *c;
+	
 	while(1) {
-	  if((c = fgets(buffer, sizeof(buffer), file)) == NULL) {
-	    perror("fgets");
-	    return -1;
-	  }
+	  fgets(buffer, sizeof(buffer), file);
 	  fprintf(file,"c3po : %s\n",buffer);
 	}
       }

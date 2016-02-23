@@ -31,6 +31,7 @@ int creer_serveur(int port){
   saddr.sin_port = htons(port);
   saddr.sin_addr.s_addr = INADDR_ANY;
   int socketServeur;
+  int socketClient;
   
   if((socketServeur = socket(AF_INET, SOCK_STREAM, 0)) == -1){
     perror("socketServeur");
@@ -60,16 +61,13 @@ int creer_serveur(int port){
   while(1){
     if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
       perror("accept");
+      return -1;
     }
-    return -1;
+  
+  if(write(socketClient, messageBienvenue, strlen(messageBienvenue)) == -1){
+      perror("write");
+      return -1;
   }
-
-  pid_t pid;
-  if((pid = fork()) == 0){
-    char* buffer[1024];
-    int readed = 0;
-    
-    write(socketClient, messageBienvenue, strlen(messageBienvenue));
     
     if( fork() == 0){
       close(socketServeur);

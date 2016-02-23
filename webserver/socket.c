@@ -57,12 +57,8 @@ int creer_serveur(int port){
     return -1;
   }
 
-  /*if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
-    perror("accept");
-    }*/
   const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
-
-  
+ 
   while(1){
     if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
       perror("accept");
@@ -73,19 +69,19 @@ int creer_serveur(int port){
       return -1;
     }
     
-    if( fork() == 0){ // je suis le fils
+    if( fork() == 0){
       close(socketServeur);
-      int test;
+      int readClient;
       while(1){
         char* buffer[1024];
-	test = read(socketClient,buffer,sizeof(buffer));
-	if(test == 0) {
+	readClient = read(socketClient,buffer,sizeof(buffer));
+	if(readClient == 0) {
 	  perror("read client");
 	  return 0; 
-	} else if (test == -1) {
+	} else if (readClient == -1) {
 	  return -1; 
 	}
-	write(socketClient, buffer, test);
+	write(socketClient, buffer, readClient);
       }
       exit(0);
     } 

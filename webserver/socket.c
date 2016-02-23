@@ -59,30 +59,31 @@ int creer_serveur(int port){
   const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
  
   while(1){
+    
     if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
       perror("accept");
       return -1;
     }
-  
-  if(write(socketClient, messageBienvenue, strlen(messageBienvenue)) == -1){
-      perror("write");
-      return -1;
-  }
     
-    if( fork() == 0){
+    FILE *file = fdopen(socketClient, "w+");
+    
+    if(fork() == 0){
+      
       close(socketServeur);
-      int readClient;
+      
       while(1){
-        char* buffer[1024];
-	readClient = read(socketClient,buffer,sizeof(buffer));
-	if(readClient == 0) {
-	  perror("read client");
-	  return 0; 
-	} else if (readClient == -1) {
-	  return -1; 
+        char buffer[1024];
+	fprintf(file, messageBienvenue);
+	char *c;
+	while(1) {
+	  if((c = fgets(buffer, sizeof(buffer), file)) == NULL) {
+	    perror("fgets");
+	    return -1;
+	  }
+	  fprintf(file,"c3po : %s\n",buffer);
 	}
-	write(socketClient, buffer, readClient);
       }
+      fclose(file);
       exit(0);
     } 
     close(socketClient);
@@ -90,5 +91,6 @@ int creer_serveur(int port){
   close(socketServeur);
   return socketServeur;
 }
+
 
 

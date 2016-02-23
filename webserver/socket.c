@@ -10,21 +10,17 @@
 #include <unistd.h>
 #include <signal.h>
 
-
-const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
-
 void traitement_signal(int sig){
-  printf("Signal %d recu\n" ,sig);
-  waitpid(-1, NULL, 0);
+  printf("Signal %d recu\n",sig);
+  waitpid(-1,NULL,0);
 }
 
-void initialiser_signaux(void){
-  struct sigaction sa;
-  sa.sa_handler = traitement_signal;
+void initialiser_signaux(void) {
+  struct sigaction sa ;
+  sa.sa_handler = traitement_signal ;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART;
-  
-  if(sigaction(SIGCHLD, &sa, NULL) == -1){
+  sa.sa_flags = SA_RESTART ;
+  if (sigaction(SIGCHLD, &sa, NULL) == -1){
     perror("sigaction(SIGCHLD)");
   }
 }
@@ -59,14 +55,10 @@ int creer_serveur(int port){
     return -1;
   }
 
-  return socketServeur;
-}
-
-int accept_client(int socketServeur){
-  int socketClient;
-
-  if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
-    if (errno != EINTR) {
+  const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
+ 
+  while(1){
+    if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
       perror("accept");
     }
     return -1;
@@ -79,20 +71,26 @@ int accept_client(int socketServeur){
     
     write(socketClient, messageBienvenue, strlen(messageBienvenue));
     
-    while(1) {
-      if((readed = read(socketClient, buffer, sizeof(buffer))) == -1) {
-        perror("read client");
-	return -1;
+    if( fork() == 0){
+      close(socketServeur);
+      int readClient;
+      while(1){
+        char* buffer[1024];
+	readClient = read(socketClient,buffer,sizeof(buffer));
+	if(readClient == 0) {
+	  perror("read client");
+	  return 0; 
+	} else if (readClient == -1) {
+	  return -1; 
+	}
+	write(socketClient, buffer, readClient);
       }
-      write(socketClient, buffer, readed);
-    }
-    close(socketServeur);
+      exit(0);
+    } 
     close(socketClient);
-    exit(0);
   }
-  close(socketClient);
-  
-  return 0;
+  close(socketServeur);
+  return socketServeur;
 }
 
 

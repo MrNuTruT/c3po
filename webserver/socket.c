@@ -10,6 +10,13 @@
 #include <unistd.h>
 #include <signal.h>
 
+const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
+const char *c3po = "<C-3PO>";
+const char *error_400 = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 17\r\n\r\n400 Bad request\r\n";
+const char *error_404 = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 13\r\n\r\n404 Not Found\r\n";
+const char *message_200 = "HTTP/1.1 200 Ok\r\n";
+const char *message_size = "Content-Length: ";
+
 void traitement_signal(int sig){
   printf("Signal %d recu\n",sig);
   waitpid(-1,NULL,0);
@@ -25,66 +32,135 @@ void initialiser_signaux(void) {
   }
 }
 
-int creer_serveur(int port){
-  struct sockaddr_in saddr;
-  saddr.sin_family = AF_INET;
-  saddr.sin_port = htons(port);
-  saddr.sin_addr.s_addr = INADDR_ANY;
-  int socketServeur;
-  int socketClient;
+int verifie_client_entete(FILE *file) {
+  char buffer[1024];
+
+  if(fgets(buffer, 1024, file) == NULL){
+    perror("Cannot read");
+    exit(1);
+  }
   
-  if((socketServeur = socket(AF_INET, SOCK_STREAM, 0)) == -1){
-    perror("socketServeur");
+  printf("%s", buffer);
+
+  char *c = buffer;
+  char *words[2];
+
+  if (strlen(c) < 3 && (c[0] != 'G' || c[1] != 'E' || c[2] != 'T')) {
+    return 400;
+  }
+
+  int word = 0;
+
+  while(c[0] != '\0') {
+    if(c[0] == ' ') {
+     
+      if (word == 2) {
+	return 400;
+      }
+      words[word] = c;
+      word ++;
+    }
+    c++;
+  }
+
+  if (strcmp(" HTTP/1.0\r\n", words[1]) != 0 && strcmp(" HTTP/1.1\r\n", words[1]) != 0) {
+    return 400;
+  }
+
+  if (words[0][1] != '/' || words[0][2] != ' ') {
+    return 404;
+  }
+
+  return 200;
+} 
+
+int creer_serveur(int port) {
+  int socketServeur;
+
+  socketServeur = socket(AF_INET, SOCK_STREAM, 0);
+
+  if (socketServeur == -1) {
+    perror("server_socket");
     return -1;
   }
 
   int optval = 1;
-  if(setsockopt(socketServeur, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) == -1) {
-    perror("Can not set SO_REUSSEADDR option");
-    return -1;
+  if(setsockopt(socketServeur, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) == -1){
+    perror("Can not set SO_REUSEADDR option");
   }
 
   initialiser_signaux();
-  
-  if(bind(socketServeur, (struct sockaddr *)&saddr, sizeof(saddr)) == -1){
+
+  struct sockaddr_in saddr;
+  saddr.sin_family = AF_INET;
+  saddr.sin_port = htons(port);
+  saddr.sin_addr.s_addr = INADDR_ANY;
+
+  if (bind(socketServeur, (struct sockaddr *) &saddr, sizeof(saddr)) == -1) {
     perror("bind socketServeur");
-    return -1;
   }
 
-  if(listen(socketServeur, 10) == -1){
-    perror("listen socketServeur");
-    return -1;
+  if (listen(socketServeur, 10) == -1) {
+    perror("lister socketServeur");
   }
 
-  //const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
- 
-  while(1){
-    
-    if((socketClient = accept(socketServeur, NULL, NULL)) == -1){
-      perror("accept");
-      return -1;
-    }
-
-    FILE *file = fdopen(socketClient, "w+");
-    
-    if(fork() == 0){
-      close(socketServeur);
-
-      char buffer[1024];
-      
-      while(1){
-	if(fgets(buffer, sizeof(buffer), file) == NULL){
-	  perror("fgets");
-	  return -1;
-	}
-	printf("c3po : %s", buffer);
-      }
-      fclose(file);
-      exit(0);
-    } 
-    close(socketClient);
-  }
-  close(socketServeur);
   return socketServeur;
 }
+
+int accept_client(int socketServeur) {
+  int socketClient;
+  socketClient = accept(socketServeur, NULL, NULL);
+  
+  if(socketClient == -1) {
+    perror("accept");
+    return -1;
+  }
+
+  if(fork() == 0){
+    FILE *file = fdopen(socketClient, "w+");
+
+    int headerError = 0;
+    headerError = verifie_client_entete(file);
+
+
+    char buffer[1024];
+
+    int fin = 0;
+
+    while (fin == 0) {
+      if(fgets(buffer, sizeof(buffer), file) == NULL){
+	perror("Cannot read");
+	exit(1);
+      }
+      printf("%s", buffer);
+      
+      if (strcmp(buffer, "\r\n") == 0 || strcmp(buffer, "\n") == 0) {
+        fin = 1;
+      }
+    }
+
+    if (headerError == 400) {
+      fprintf(file, "%s", error_400);
+    } else if (headerError == 404) {
+      fprintf(file, "%s", error_404);
+    } else if (headerError == 200) {
+      fprintf(file, "%s%s%d\r\n\r\n%s %s", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
+    }
+
+    fflush(file);   
+    close(socketClient);
+    close(socketServeur);
+    exit(1);
+  }
+  close(socketClient);
+
+  return 0;
+}
+
+
+
+
+
+
+
 

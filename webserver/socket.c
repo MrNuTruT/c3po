@@ -10,10 +10,8 @@
 #include <unistd.h>
 #include <signal.h>
 
-const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.\n";
+const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.";
 const char *c3po = "<C-3PO>";
-const char *error_400 = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 17\r\n\r\n400 Bad request\r\n";
-const char *error_404 = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 13\r\n\r\n404 Not Found\r\n";
 const char *message_200 = "HTTP/1.1 200 Ok\r\n";
 const char *message_size = "Content-Length: ";
 
@@ -26,13 +24,14 @@ void initialiser_signaux(void) {
   struct sigaction sa ;
   sa.sa_handler = traitement_signal ;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_RESTART ;
+  sa.sa_flags = SA_RESTART;
+  
   if (sigaction(SIGCHLD, &sa, NULL) == -1){
     perror("sigaction(SIGCHLD)");
   }
 }
 
-int verifie_client_entete(FILE *file) {
+/*int verifie_client_entete(FILE *file) {
   char buffer[1024];
 
   if(fgets(buffer, 1024, file) == NULL){
@@ -40,15 +39,15 @@ int verifie_client_entete(FILE *file) {
     exit(1);
   }
   
-  printf("%s", buffer);
+  //printf("%s", buffer);
 
   char *c = buffer;
-  char *words[2];
+  //char *words[2];
 
   if (strlen(c) < 3 && (c[0] != 'G' || c[1] != 'E' || c[2] != 'T')) {
     return 400;
   }
-
+  
   int word = 0;
 
   while(c[0] != '\0') {
@@ -63,16 +62,17 @@ int verifie_client_entete(FILE *file) {
     c++;
   }
 
-  if (strcmp(" HTTP/1.0\r\n", words[1]) != 0 && strcmp(" HTTP/1.1\r\n", words[1]) != 0) {
+  
+  if (strcmp(" HTTP/1.0\r\n", words[1]) != 0 || strcmp(" HTTP/1.1\r\n", words[1]) != 0) {
     return 400;
   }
-
-  if (words[0][1] != '/' || words[0][2] != ' ') {
+  
+    if (words[0][1] != '/' || words[0][2] != ' ') {
     return 404;
-  }
+    }
 
   return 200;
-} 
+} */
 
 int creer_serveur(int port) {
   int socketServeur;
@@ -107,6 +107,25 @@ int creer_serveur(int port) {
   return socketServeur;
 }
 
+int verifie_client_entete(FILE *file) {
+  char buffer[1024];
+
+  if(fgets(buffer, 1024, file) == NULL){
+    perror("Cannot read");
+    exit(1);
+  }
+
+  printf("%s", buffer);
+  
+  char *c = buffer;
+
+  if (strlen(c) < 3 && (c[0] != 'G' || c[1] != 'E' || c[2] != 'T')) {
+    return 400;
+  }
+ 
+  return 200;
+} 
+
 int accept_client(int socketServeur) {
   int socketClient;
   socketClient = accept(socketServeur, NULL, NULL);
@@ -118,35 +137,20 @@ int accept_client(int socketServeur) {
 
   if(fork() == 0){
     FILE *file = fdopen(socketClient, "w+");
-
-    int headerError = 0;
-    headerError = verifie_client_entete(file);
-
-
     char buffer[1024];
 
-    int fin = 0;
+    while(1) {
+      int headerError = verifie_client_entete(file);
 
-    while (fin == 0) {
-      if(fgets(buffer, sizeof(buffer), file) == NULL){
-	perror("Cannot read");
-	exit(1);
-      }
-      printf("%s", buffer);
-      
-      if (strcmp(buffer, "\r\n") == 0 || strcmp(buffer, "\n") == 0) {
-        fin = 1;
+      if(headerError == 200){
+	if ((strcmp(buffer, "\r\n") != 0 && strcmp(buffer, "\n") != 0)) {
+	  fprintf(file, "%s%s%d\r\n\r\n%s %s\r\n", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
+	}
+      }else{
+	fprintf(file, "different de 200\r\n");
       }
     }
-
-    if (headerError == 400) {
-      fprintf(file, "%s", error_400);
-    } else if (headerError == 404) {
-      fprintf(file, "%s", error_404);
-    } else if (headerError == 200) {
-      fprintf(file, "%s%s%d\r\n\r\n%s %s", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
-    }
-
+   
     fflush(file);   
     close(socketClient);
     close(socketServeur);

@@ -1,23 +1,46 @@
 #include <errno.h>
+
+#include <ctype.h>
+
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
 #include <netinet/in.h>
 #include <netinet/ip.h>
+
 #include <unistd.h>
-#include <signal.h>
+#include "socket.h"
+
 
 const char *messageBienvenue = "Bonjour, je m'appelle C3PO, interprete du serveur web code en C et voici mes createurs Ali Douali et Paul Dumont.\nJe suis dispose a repondre a vos demandes jour et nuit.\nVous allez etre conduits dans les profondeurs du serveur web, le repere des tout puissants createurs.\nVous decouvrirez une nouvelle forme de douleur et de souffrance, en etant lentement codes pendant plus de... 1000 ans.";
 const char *c3po = "<C-3PO>";
-const char *message_200 = "HTTP/1.1 200 Ok\r\n";
 const char *message_size = "Content-Length: ";
+
+const char *message_200 = "HTTP/1.1 200 Ok\r\n";
+const char *message_400_bad_request = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 17\r\n\r\n400 Bad Request\r\n";
+const char *message_404 = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 15\r\n\r\n404 Not Found\r\n";
 
 void traitement_signal(int sig){
   printf("Signal %d recu\n",sig);
   waitpid(-1,NULL,0);
+}
+
+void fgets_or_exit(char *buffer, int size, FILE *stream){
+  if(fgets(buffer, size, stream) == NULL){
+    perror("Cannot read");
+    exit(1);
+  }
+  if(buffer[0] == '/'){
+    if (!(strcmp(buffer, "\r\n") == 0 || strcmp(buffer, "\n") == 0)) {
+      printf("%s", buffer);
+    }
+  }
 }
 
 void initialiser_signaux(void) {
@@ -30,49 +53,6 @@ void initialiser_signaux(void) {
     perror("sigaction(SIGCHLD)");
   }
 }
-
-/*int verifie_client_entete(FILE *file) {
-  char buffer[1024];
-
-  if(fgets(buffer, 1024, file) == NULL){
-    perror("Cannot read");
-    exit(1);
-  }
-  
-  //printf("%s", buffer);
-
-  char *c = buffer;
-  //char *words[2];
-
-  if (strlen(c) < 3 && (c[0] != 'G' || c[1] != 'E' || c[2] != 'T')) {
-    return 400;
-  }
-  
-  int word = 0;
-
-  while(c[0] != '\0') {
-    if(c[0] == ' ') {
-     
-      if (word == 2) {
-	return 400;
-      }
-      words[word] = c;
-      word ++;
-    }
-    c++;
-  }
-
-  
-  if (strcmp(" HTTP/1.0\r\n", words[1]) != 0 || strcmp(" HTTP/1.1\r\n", words[1]) != 0) {
-    return 400;
-  }
-  
-    if (words[0][1] != '/' || words[0][2] != ' ') {
-    return 404;
-    }
-
-  return 200;
-} */
 
 int creer_serveur(int port) {
   int socketServeur;
@@ -109,19 +89,41 @@ int creer_serveur(int port) {
 
 int verifie_client_entete(FILE *file) {
   char buffer[1024];
+  //char *line;
 
-  if(fgets(buffer, 1024, file) == NULL){
-    perror("Cannot read");
-    exit(1);
-  }
-
-  printf("%s", buffer);
+  fgets_or_exit(buffer,1024,file);
   
   char *c = buffer;
 
-  if (strlen(c) < 3 && (c[0] != 'G' || c[1] != 'E' || c[2] != 'T')) {
-    return 400;
+  if(c[0] != '/'){
+    return 404;
   }
+  //char buf[128];
+  /*
+  if((line = fgets(buf,sizeof(buf),file)) == NULL){
+    perror("line buffer");
+    return -1;
+  }
+   // marche pas vas direct dans le else 
+  if(strncmp("GET", line, 3) == 0){
+    char tab[3][10];
+    int i = 0;
+    int j = 0;
+    int mots = 0;
+    for(j = 0;j < (int)strlen(line);j++){
+      if(isspace(line[i]) != 0 || line[i] == '\n'){
+	mots++;
+	j=0;
+      }
+      tab[mots][j] = line[i];
+      j++;
+    }
+    if((mots -1 != 3) || (strcmp("HTTP/1.0",tab[2]) != 0 || strcmp("HTTP/1.1",tab[2]) != 0)){
+      return 400;
+    }
+  }else{
+  return 357;
+  }*/
  
   return 200;
 } 
@@ -142,12 +144,30 @@ int accept_client(int socketServeur) {
     while(1) {
       int headerError = verifie_client_entete(file);
 
-      if(headerError == 200){
+
+      switch(headerError){
+      case 200:
 	if ((strcmp(buffer, "\r\n") != 0 && strcmp(buffer, "\n") != 0)) {
-	  fprintf(file, "%s%s%d\r\n\r\n%s %s\r\n", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
+	  //if(parse_http_request(buffer,)){
+	    
+	    fprintf(file, "%s%s%d\r\n\r\n%s %s\r\n", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
+	    //  }
+	}else{
+	  fprintf(file, message_400_bad_request);
 	}
-      }else{
-	fprintf(file, "different de 200\r\n");
+	break;
+      case 357:
+	fprintf(file,"marche pas");
+	break;
+      case 400:
+	fprintf(file, message_400_bad_request);
+	break;
+      case 404:
+	fprintf(file,message_404);
+	break;
+      default:
+	fprintf(file, message_400_bad_request);
+	break;
       }
     }
    
@@ -161,10 +181,6 @@ int accept_client(int socketServeur) {
   return 0;
 }
 
-
-
-
-
-
-
-
+//int parse_http_request(const char *request_line, http_request *request){
+  
+//}

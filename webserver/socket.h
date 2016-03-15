@@ -17,4 +17,9 @@ typedef struct {
   int minor_version;
   char *url;
 } http_request;
+
+int parse_http_request(char *request_line, http_request *request);
+void skip_headers(FILE *file);
+void send_status (FILE *client, int code, const char *reason_phrase);
+void send_response(FILE *client, int code, const char *reason_phrase, const char *message_body);
 #endif

@@ -25,6 +25,7 @@ const char *message_size = "Content-Length: ";
 const char *message_200 = "HTTP/1.1 200 Ok\r\n";
 const char *message_400_bad_request = "HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 17\r\n\r\n400 Bad Request\r\n";
 const char *message_404 = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 15\r\n\r\n404 Not Found\r\n";
+const char *http_version = "HTTP-1.1";
 
 void traitement_signal(int sig){
   printf("Signal %d recu\n",sig);
@@ -88,44 +89,31 @@ int creer_serveur(int port) {
 }
 
 int verifie_client_entete(FILE *file) {
+
   char buffer[1024];
-  //char *line;
+  http_request request;
 
-  fgets_or_exit(buffer,1024,file);
-  
-  char *c = buffer;
+  fgets_or_exit(buffer, 1024, file);
 
-  if(c[0] != '/'){
-    return 404;
-  }
-  //char buf[128];
-  /*
-  if((line = fgets(buf,sizeof(buf),file)) == NULL){
-    perror("line buffer");
-    return -1;
-  }
-   // marche pas vas direct dans le else 
-  if(strncmp("GET", line, 3) == 0){
-    char tab[3][10];
-    int i = 0;
-    int j = 0;
-    int mots = 0;
-    for(j = 0;j < (int)strlen(line);j++){
-      if(isspace(line[i]) != 0 || line[i] == '\n'){
-	mots++;
-	j=0;
-      }
-      tab[mots][j] = line[i];
-      j++;
-    }
-    if((mots -1 != 3) || (strcmp("HTTP/1.0",tab[2]) != 0 || strcmp("HTTP/1.1",tab[2]) != 0)){
+  if (parse_http_request(buffer, &request) == 1) {
+    if (request.method != HTTP_GET) {
+      skip_headers(file);
+      send_response(file, 400, "Bad request", "Bad request\r\n");
       return 400;
+    } else if (strcmp(request.url, "/")) {
+      skip_headers(file);
+      send_response(file, 404, "Not Found", "Not Found\r\n");
+      return 404;
+    } else {
+      skip_headers(file);
+      return 200;
     }
-  }else{
-  return 357;
-  }*/
- 
-  return 200;
+  } else {
+    skip_headers(file);
+    send_response(file, 400, "Bad Request", "Bad request\r\n");
+    return 400;
+  }
+
 } 
 
 int accept_client(int socketServeur) {
@@ -139,37 +127,12 @@ int accept_client(int socketServeur) {
 
   if(fork() == 0){
     FILE *file = fdopen(socketClient, "w+");
-    char buffer[1024];
+    
+    int headerError = verifie_client_entete(file);
 
-    while(1) {
-      int headerError = verifie_client_entete(file);
-
-
-      switch(headerError){
-      case 200:
-	if ((strcmp(buffer, "\r\n") != 0 && strcmp(buffer, "\n") != 0)) {
-	  //if(parse_http_request(buffer,)){
-	    
-	    fprintf(file, "%s%s%d\r\n\r\n%s %s\r\n", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
-	    //  }
-	}else{
-	  fprintf(file, message_400_bad_request);
-	}
-	break;
-      case 357:
-	fprintf(file,"marche pas");
-	break;
-      case 400:
-	fprintf(file, message_400_bad_request);
-	break;
-      case 404:
-	fprintf(file,message_404);
-	break;
-      default:
-	fprintf(file, message_400_bad_request);
-	break;
-      }
-    }
+    if(headerError == 200){
+      fprintf(file, "%s%s%d\r\n\r\n%s %s\r\n", message_200, message_size, (int) (strlen(c3po) + strlen(messageBienvenue) + 3), c3po, messageBienvenue);
+    }    
    
     fflush(file);   
     close(socketClient);
@@ -181,6 +144,60 @@ int accept_client(int socketServeur) {
   return 0;
 }
 
-//int parse_http_request(const char *request_line, http_request *request){
-  
-//}
+int parse_http_request(char *request_line, http_request *request){
+  char* token = strtok(request_line, " ");
+  int line = 0;
+  while(token != NULL) {
+    if (line == 0 && strcmp("GET", token) == 0) {
+      request->method = HTTP_GET;
+    } else if (line == 0) {
+      request->method = HTTP_UNSUPPORTED;
+    } else if (line == 1) {
+      request->url = token;
+    } else if (line == 2) {
+      if (strcmp(" HTTP/1.0\r\n", token) == 0) {
+	request->major_version = 1;
+	request->minor_version = 0;
+      } else if (strcmp(" HTTP/1.1\r\n", token) != 0) {
+	request->major_version = 1;
+	request->minor_version = 1;
+      } else {
+	return 0;
+      }
+    } else {
+      return 0;
+    }
+    line++;
+    token = strtok(NULL, " ");
+  }
+  return line == 3;
+}
+
+void skip_headers(FILE *file){
+  char buffer[1024];           
+
+  while (1) {
+    fgets_or_exit(buffer, 1024, file);
+    if (strcmp(buffer, "\r\n") == 0 || strcmp(buffer, "\n") == 0) {
+      return;
+    }
+  }
+}
+
+void send_status (FILE *client, int code, const char *reason_phrase){
+  char buf[128];
+
+  sprintf(buf, "%d %s\r\n", code, reason_phrase);
+  fprintf(client, "%s %d %s\r\nConnection: close\r\n%s %d\r\n\r\n%s", http_version, code, reason_phrase, message_size, (int) (strlen(buf) + 1), buf);
+}
+
+void send_response(FILE *client, int code, const char *reason_phrase, const char *message_body){
+  if(message_body == NULL) {
+  }
+  if(code == 400)
+    send_status(client, 400, reason_phrase);
+  else if(code == 404)
+    send_status(client, 404, reason_phrase);
+  else
+    send_status(client, 400, reason_phrase);
+}
